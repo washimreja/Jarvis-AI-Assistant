@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>JARVIS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #07090f;
+      --card:   rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --accent: #6366f1;
+      --adim:   rgba(99,102,241,0.15);
+      --text:   #dde3ed;
+      --muted:  #8190a6;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 360px;
+      margin: 16px;
+      padding: 40px 32px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 40px rgba(99,102,241,0.06);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 10px;
+      margin-bottom: 6px;
+    }
+    .logo em { color: var(--accent); font-style: normal; }
+    .sub {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 26px;
+    }
+    .key-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    .key-input {
+      width: 100%;
+      padding: 16px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-size: 28px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      text-align: center;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      caret-color: var(--accent);
+    }
+    .key-input::placeholder {
+      color: rgba(129,144,166,0.45);
+      letter-spacing: 6px;
+      font-size: 18px;
+    }
+    .key-input:focus {
+      border-color: var(--accent);
+      background: var(--adim);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+    }
+    .err {
+      font-size: 12px;
+      color: #f87171;
+      min-height: 20px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.15s, transform 0.1s, background-color 0.2s;
+    }
+    .btn:hover:not(:disabled) {
+      opacity: 0.92;
+      box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-7px); }
+      40%,80% { transform: translateX(7px); }
+    }
+    .shake { animation: shake 0.35s ease; }
+    .voice-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 22px;
+      line-height: 1.6;
+      text-align: left;
+    }
+    .voice-note code {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+    }
+    #reconnecting {
+      display: none;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="logo"><em>J</em>ARVIS</div>
+    <div class="sub">Remote Access</div>
+    <p id="reconnecting">Reconnecting…</p>
+    <p class="hint">Press <strong style="color:var(--text)">Remote Control</strong> in the JARVIS desktop app to get a QR code or session key.</p>
+    
+    <form id="loginForm" onsubmit="event.preventDefault(); doLogin();" novalidate>
+      <div class="key-wrap">
+        <label for="key" class="visually-hidden">6-digit PIN</label>
+        <input class="key-input" id="key" type="text" maxlength="6"
+               autocomplete="one-time-code" autocorrect="off" autocapitalize="characters"
+               spellcheck="false" inputmode="text"
+               placeholder="· · · · · ·" aria-label="6-digit Session PIN">
+      </div>
+      <div class="err" id="err" role="alert"></div>
+      <button class="btn" id="submitBtn" type="submit">CONNECT</button>
+    </form>
+
+    <p class="voice-note">
+      🎤 <strong style="color:var(--text)">Voice commands:</strong> open
+      <code>chrome://flags</code> on your phone, search
+      <code>Insecure origins treated as secure</code>, add your JARVIS URL, tap Relaunch.
+    </p>
+  </div>
+
+  <script>
+    // Try auto-reconnect with stored device token (set on first QR login)
+    (async function() {
+      const devTok = localStorage.getItem('jarvis_device_token');
+      if (!devTok) return;
+      document.getElementById('reconnecting').style.display = 'block';
+      try {
+        const r = await fetch('/api/device-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_token: devTok }),
+        });
+        const d = await r.json();
+        if (d.ok && d.token) {
+          sessionStorage.setItem('jarvis_key', d.key);
+          sessionStorage.setItem('jarvis_token', d.token);
+          location.replace('/');
+          return;
+        }
+      } catch (_) {}
+      // Device token rejected (server restarted) — clear it and show normal form
+      localStorage.removeItem('jarvis_device_token');
+      document.getElementById('reconnecting').style.display = 'none';
+    })();
+
+    const inp = document.getElementById('key');
+    const submitBtn = document.getElementById('submitBtn');
+    const errDiv = document.getElementById('err');
+    let isSubmitting = false;
+
+    inp.focus();
+
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.toUpperCase().replace(/[^A-Z2-9]/g, '');
+      errDiv.textContent = '';
+      if (inp.value.length === 6) doLogin();
+    });
+
+    async function doLogin() {
+      if (isSubmitting) return;
+      const key = inp.value.trim();
+      if (key.length < 6) { shake(); return; }
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>CONNECTING...';
+      errDiv.textContent = '';
+
+      let data;
+      try {
+        const r = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: key })
+        });
+        data = await r.json();
+      } catch (e) {
+        errDiv.textContent = 'Connection error';
+        shake();
+        finishSubmit();
+        return;
+      }
+
+      if (data.ok && data.token) {
+        sessionStorage.setItem('jarvis_key', key);
+        sessionStorage.setItem('jarvis_token', data.token);
+        location.href = '/';
+      } else {
+        inp.value = '';
+        inp.focus();
+        errDiv.textContent = data.error || 'Invalid or expired key';
+        shake();
+        finishSubmit();
+      }
+    }
+
+    function finishSubmit() {
+      isSubmitting = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'CONNECT';
+    }
+
+    function shake() {
+      const c = document.getElementById('card');
+      c.classList.remove('shake');
+      void c.offsetWidth;
+      c.classList.add('shake');
+    }
+  </script>
+</body>
+</html>
