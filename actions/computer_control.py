@@ -467,18 +467,64 @@ def computer_control(
         if action == "screenshot":
             return _screenshot(params.get("path"))
 
+        # Legacy aliases backed by VisualEngine
         if action == "screen_find":
-            coords = _screen_find(params.get("description", ""))
-            return f"{coords[0]},{coords[1]}" if coords else "NOT_FOUND"
+            try:
+                from core.visual_engine import VisualEngine
+                r = VisualEngine().visual_find(params.get("description", ""))
+                if r.get("found") and r.get("safe"):
+                    cx, cy = r["center"]["x"], r["center"]["y"]
+                    return f"{cx},{cy}"
+                return "NOT_FOUND"
+            except Exception as _e:
+                coords = _screen_find(params.get("description", ""))
+                return f"{coords[0]},{coords[1]}" if coords else "NOT_FOUND"
 
         if action == "screen_click":
-            desc   = params.get("description", "")
-            coords = _screen_find(desc)
-            if coords:
-                time.sleep(0.2)
-                _click(x=coords[0], y=coords[1])
-                return f"Clicked '{desc}' at {coords}"
-            return f"Element not found on screen: '{desc}'"
+            try:
+                from core.visual_engine import VisualEngine
+                r = VisualEngine().visual_click(params.get("description", ""))
+                return r.get("message", "screen_click completed")
+            except Exception as _e:
+                desc = params.get("description", "")
+                coords = _screen_find(desc)
+                if coords:
+                    time.sleep(0.2)
+                    _click(x=coords[0], y=coords[1])
+                    return f"Clicked '{desc}' at {coords}"
+                return f"Element not found: '{desc}'"
+
+        # Visual Control Engine
+        if action == "visual_find":
+            try:
+                from core.visual_engine import VisualEngine
+                r = VisualEngine().visual_find(params.get("description", ""))
+                return r.get("message", str(r))
+            except Exception as _e:
+                return f"visual_find failed: {_e}"
+
+        if action == "visual_click":
+            try:
+                from core.visual_engine import VisualEngine
+                r = VisualEngine().visual_click(
+                    description=params.get("description", ""),
+                    click_type=params.get("click_type", "left"),
+                    confirm_destructive=bool(params.get("confirm", False)),
+                )
+                return r.get("message", str(r))
+            except Exception as _e:
+                return f"visual_click failed: {_e}"
+
+        if action == "visual_type":
+            try:
+                from core.visual_engine import VisualEngine
+                r = VisualEngine().visual_type(
+                    field_description=params.get("description", ""),
+                    text=params.get("text", ""),
+                )
+                return r.get("message", str(r))
+            except Exception as _e:
+                return f"visual_type failed: {_e}"
 
         if action == "wait":
             secs = float(params.get("seconds", 1.0))
@@ -523,7 +569,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | visual_find | visual_click | visual_type | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
@@ -563,7 +609,7 @@ TOOL = {
             },
             "description": {
                 "type": "STRING",
-                "description": "Element description for screen_find/screen_click"
+                "description": "Element description for screen_find/screen_click/visual_find/visual_click/visual_type"
             },
             "type": {
                 "type": "STRING",
@@ -580,6 +626,14 @@ TOOL = {
             "path": {
                 "type": "STRING",
                 "description": "Save path for screenshot"
+            },
+            "click_type": {
+                "type": "STRING",
+                "description": "left | right | double for visual_click (default: left)"
+            },
+            "confirm": {
+                "type": "BOOLEAN",
+                "description": "true to allow destructive visual_click targets"
             }
         },
         "required": [
