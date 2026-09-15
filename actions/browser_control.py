@@ -929,175 +929,219 @@ def browser_control(
     player=None,
     session_memory=None,
 ) -> str:
+    from core.browser_manager import BrowserManager
+    bm = BrowserManager.get_instance()
+
     params  = parameters or {}
     action  = params.get("action", "").lower().strip()
-    browser = params.get("browser", "").lower().strip() or None
-    result  = "Unknown action."
+    browser = params.get("browser", "").lower().strip() or "chrome"
+    url     = params.get("url", "").strip()
+    text    = params.get("text", "")
+    desc    = params.get("description", "").strip()
+    sel     = params.get("selector", "").strip() or None
+    key     = params.get("key", "Enter").strip()
+    direction = params.get("direction", "down").lower().strip()
+    amount  = int(params.get("amount", 500))
+    clear   = params.get("clear_first", True)
+    press_enter = params.get("press_enter", False)
 
-    if action == "switch":
-        target = browser or params.get("target", "").lower().strip()
-        result = _registry.switch(target) if target else "Please specify a browser."
-        _log(player, result)
-        return result
-
-    if action == "list_browsers":
-        result = _registry.list_sessions()
-        _log(player, result)
-        return result
-
-    if action == "close_all":
-        result = _registry.close_all()
-        _log(player, result)
-        return result
-
-    if action == "close":
-        target = browser or _registry._active_browser
-        result = _registry.close_one(target) if target else "No browser specified."
-        _log(player, result)
-        return result
-
-    # ── Navigation is ALWAYS native ──────────────────────────────────────────
-    # go_to / search / new_tab open the site in the user's own browser —
-    # their own profile, logged-in accounts and start page; exactly as if the
-    # user had opened it themselves. A controlled window with about:blank never
-    # opens here. The only exception: if an automation flow is already running,
-    # navigation continues in that window (so multi-step tasks aren't split).
-    if action in ("go_to", "search", "new_tab"):
-        if _registry.has(browser):
-            sess = _registry.get(browser)
-            try:
-                if action == "search":
-                    result = sess.run(sess.search(params.get("query", ""),
-                                                  params.get("engine", "google")))
-                elif action == "new_tab":
-                    result = sess.run(sess.new_tab(params.get("url", "")))
-                else:
-                    result = sess.run(sess.go_to(params.get("url", "")))
-            except concurrent.futures.TimeoutError:
-                result = f"Browser action '{action}' timed out (60s)."
-            except Exception as e:
-                result = f"Browser error ({action}): {e}"
-            _log(player, result)
-            return result
-
-        if action == "search":
-            base    = _SEARCH_ENGINES.get(params.get("engine", "google").lower(),
-                                          _SEARCH_ENGINES["google"])
-            nav_url = base + params.get("query", "").replace(" ", "+")
-        else:
-            nav_url = params.get("url", "").strip()
-
-        result = _open_native(nav_url, browser)
-        if result.startswith("Opened") and nav_url:
-            _registry.note_native_url(_normalize_url(nav_url))
-        _log(player, result)
-        return result
-
-    # ── Interactive actions (click/type/read…) ───────────────────────────────
-    # These require a physically controllable browser; the automation window
-    # only opens here, and as soon as it opens it goes to the user's last
-    # navigated page — it doesn't sit on a blank page.
+    # Ensure background browser is ready
     try:
-        sess = _registry.get(browser)
+        bm.run_sync(bm.ensure_browser(browser), timeout=25)
     except Exception as e:
-        result = f"Could not start browser session: {e}"
-        _log(player, result)
-        return result
+        err = f"Could not initialize browser ({browser}): {e}"
+        _log(player, err)
+        return err
 
     try:
-        last = _registry.pop_native_url()
-        if last:
-            try:
-                sess.run(sess.go_to(last))
-            except Exception as e:
-                print(f"[Browser] Could not resume last page ({last}): {e}")
+        if action in ("go_to", "open", "navigate"):
+            if not url:
+                url = desc or "https://google.com"
+            res = bm.run_sync(bm.navigate(url), timeout=35)
+            result = res.get("message", f"Navigated to {url}")
 
-        if action == "click":
-            result = sess.run(sess.click(params.get("selector"), params.get("text")))
-        elif action == "type":
-            result = sess.run(sess.type_text(
-                params.get("selector"), params.get("text", ""), params.get("clear_first", True)))
+        elif action == "search":
+            query = params.get("query", "").strip() or desc
+            engine = params.get("engine", "google").lower()
+            base = _SEARCH_ENGINES.get(engine, _SEARCH_ENGINES["google"])
+            target = base + query.replace(" ", "+")
+            res = bm.run_sync(bm.navigate(target), timeout=35)
+            result = f"Searched {engine} for '{query}': {res.get('title')}"
+
+        elif action in ("type", "smart_type", "type_text"):
+            # Check if user prompt intended pressing Enter
+            if not press_enter and any(w in desc.lower() for w in ("press enter", "submit", "hit enter")):
+                press_enter = True
+            res = bm.run_sync(
+                bm.type_text(
+                    text=text,
+                    selector=sel,
+                    description=desc,
+                    clear_first=clear,
+                    press_enter=press_enter,
+                ),
+                timeout=25,
+            )
+            result = res.get("message", "Typing completed.")
+
+        elif action in ("click", "smart_click"):
+            res = bm.run_sync(bm.click_element(selector=sel, description=desc), timeout=15)
+            result = res.get("message", f"Clicked '{desc or sel}'")
+
+        elif action in ("press", "press_key"):
+            res = bm.run_sync(bm.press_key(key), timeout=10)
+            result = res.get("message", f"Pressed '{key}'")
+
         elif action == "scroll":
-            result = sess.run(sess.scroll(params.get("direction", "down"), int(params.get("amount", 500))))
-        elif action == "fill_form":
-            result = sess.run(sess.fill_form(params.get("fields", {})))
-        elif action == "smart_click":
-            result = sess.run(sess.smart_click(params.get("description", "")))
-        elif action == "smart_type":
-            result = sess.run(sess.smart_type(params.get("description", ""), params.get("text", "")))
-        elif action == "get_text":
-            result = sess.run(sess.get_text())
-        elif action == "get_url":
-            result = sess.run(sess.get_url())
-        elif action == "press":
-            result = sess.run(sess.press(params.get("key", "Enter")))
-        elif action == "close_tab":
-            result = sess.run(sess.close_tab())
-        elif action == "screenshot":
-            result = sess.run(sess.screenshot(params.get("path")))
-        elif action == "back":
-            result = sess.run(sess.back())
-        elif action == "forward":
-            result = sess.run(sess.forward())
+            res = bm.run_sync(bm.scroll(direction=direction, amount=amount), timeout=10)
+            result = res.get("message", f"Scrolled {direction}")
+
+        elif action in ("get_text", "read_page", "read_text", "page_info"):
+            res = bm.run_sync(bm.get_page_info(), timeout=10)
+            if res.get("success"):
+                result = f"Page: '{res.get('title')}' ({res.get('url')})\nSnippet: {res.get('text_snippet')[:800]}"
+            else:
+                result = f"Could not read page: {res.get('error')}"
+
+        elif action in ("get_url", "url"):
+            res = bm.run_sync(bm.get_page_info(), timeout=10)
+            result = f"Current URL: {res.get('url', 'unknown')}"
+
+        elif action in ("back", "go_back"):
+            res = bm.run_sync(bm.go_back(), timeout=10)
+            result = f"Navigated back to: {res.get('url')}" if res.get("success") else f"Back failed: {res.get('error')}"
+
+        elif action in ("forward", "go_forward"):
+            res = bm.run_sync(bm.go_forward(), timeout=10)
+            result = f"Navigated forward to: {res.get('url')}" if res.get("success") else f"Forward failed: {res.get('error')}"
+
         elif action == "reload":
-            result = sess.run(sess.reload())
+            res = bm.run_sync(bm.reload(), timeout=15)
+            result = f"Reloaded page: {res.get('url')}"
+
+        elif action == "new_tab":
+            res = bm.run_sync(bm.new_tab(url), timeout=25)
+            result = res.get("message", "New tab opened.")
+
+        elif action == "close_tab":
+            res = bm.run_sync(bm.close_tab(), timeout=10)
+            result = res.get("message", "Tab closed.")
+
+        elif action in ("list_tabs", "tabs"):
+            res = bm.run_sync(bm.list_tabs(), timeout=10)
+            tabs = res.get("tabs", [])
+            lines = [f"{t['index']}: {t['title']} ({t['url']}){' [ACTIVE]' if t.get('active') else ''}" for t in tabs]
+            result = f"Open tabs ({len(tabs)}):\n" + "\n".join(lines)
+
+        elif action == "switch_tab":
+            idx = int(params.get("index", 0))
+            res = bm.run_sync(bm.switch_tab(idx), timeout=10)
+            result = f"Switched to tab {idx}: {res.get('title')}" if res.get("success") else res.get("message", "Failed to switch tab.")
+
+        elif action in ("ask_chatgpt", "chatgpt", "chat_gpt"):
+            prompt = text or desc or query or params.get("prompt", "")
+            if not prompt:
+                result = "No prompt provided for ChatGPT."
+            else:
+                res = bm.run_sync(bm.ask_chatgpt(prompt=prompt, wait_for_response=True), timeout=75)
+                if res.get("success"):
+                    result = f"ChatGPT: {res.get('response') or res.get('message')}"
+                else:
+                    result = f"ChatGPT notice: {res.get('error', res.get('message', 'Interaction failed'))}"
+
+        elif action in ("maximize", "maximize_window"):
+            from core.window_manager import WindowManager
+            win_res = WindowManager.maximize_browser()
+            async def _maximize_page():
+                p = await bm.get_active_page()
+                try:
+                    await p.set_viewport_size({"width": 1920, "height": 1080})
+                except Exception:
+                    pass
+            try:
+                bm.run_sync(_maximize_page(), timeout=5)
+            except Exception:
+                pass
+            result = win_res.get("message", "Browser window maximized.")
+
+        elif action in ("minimize", "minimize_window"):
+            from core.window_manager import WindowManager
+            wins = WindowManager.find_browser_windows()
+            if wins:
+                win_res = WindowManager.minimize_window(wins[0]["hwnd"])
+                result = win_res.get("message", "Browser minimized.")
+            else:
+                result = "No active browser window found to minimize."
+
+        elif action in ("fullscreen", "full_screen"):
+            enable = params.get("enable", True)
+            res = bm.run_sync(bm.set_page_fullscreen(enable), timeout=10)
+            result = res.get("message", f"Fullscreen set to {enable}")
+
         else:
             result = f"Unknown browser action: '{action}'"
 
     except concurrent.futures.TimeoutError:
-        result = f"Browser action '{action}' timed out (60s)."
+        result = f"Browser action '{action}' timed out (45s)."
     except Exception as e:
-        result = f"Browser error ({action}): {e}"
+        result = f"Browser action '{action}' failed: {e}"
 
     _log(player, result)
     return result
 
 
 def _log(player, text: str):
-    short = str(text)[:80]
+    short = str(text)[:120]
     print(f"[Browser] {short}")
     if player:
-        player.write_log(f"[browser] {short[:60]}")
+        try:
+            player.write_log(f"[browser] {short[:80]}")
+        except Exception:
+            pass
 
 
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "browser_control",
-    "description": "Controls any web browser. Use for: opening websites, searching the web, clicking elements, filling forms, scrolling, screenshots, navigation, any web-based task. Simple open/search requests launch the user's own browser normally (their real profile and logged-in accounts); interactive actions (click, type, fill_form...) attach an automation browser. Always pass the 'browser' parameter when the user specifies a browser (e.g. 'open in Edge', 'use Firefox', 'open Chrome'). Multiple browsers can run simultaneously.",
+    "description": "Reliably controls the web browser with full DOM inspection and verification. Actions: navigate (open website/URL), search (query search engine), type (type into search bar, chat composer, form inputs with optional Enter key), click (click buttons, links, tabs), scroll (up/down), get_text (read visible page contents), press (press Enter/Escape/arrows), ask_chatgpt (submit prompt to ChatGPT and wait for response), new_tab, close_tab, list_tabs, switch_tab, back, forward, reload, maximize (maximize browser window), minimize, fullscreen (toggle fullscreen).",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "go_to | search | click | type | scroll | fill_form | smart_click | smart_type | get_text | get_url | press | new_tab | close_tab | screenshot | back | forward | reload | switch | list_browsers | close | close_all"
+                "description": "navigate | go_to | search | type | click | scroll | get_text | get_url | press | ask_chatgpt | maximize | minimize | fullscreen | new_tab | close_tab | list_tabs | switch_tab | back | forward | reload"
             },
             "browser": {
                 "type": "STRING",
-                "description": "Target browser: chrome | edge | firefox | opera | operagx | brave | vivaldi | safari. Omit to use the currently active browser."
+                "description": "Target browser: chrome | edge | chromium (default: chrome)"
             },
             "url": {
                 "type": "STRING",
-                "description": "URL for go_to / new_tab action"
+                "description": "URL to navigate to (e.g. 'https://chatgpt.com', 'youtube.com')"
             },
             "query": {
                 "type": "STRING",
                 "description": "Search query for search action"
             },
-            "engine": {
-                "type": "STRING",
-                "description": "Search engine: google | bing | duckduckgo | yandex (default: google)"
-            },
-            "selector": {
-                "type": "STRING",
-                "description": "CSS selector for click/type"
-            },
             "text": {
                 "type": "STRING",
-                "description": "Text to click or type"
+                "description": "Text to type into an input, search box, or message composer"
             },
             "description": {
                 "type": "STRING",
-                "description": "Element description for smart_click/smart_type"
+                "description": "Semantic description of the target element (e.g. 'search box', 'message input', 'Ask ChatGPT', 'submit button')"
+            },
+            "selector": {
+                "type": "STRING",
+                "description": "Optional CSS selector for target element"
+            },
+            "press_enter": {
+                "type": "BOOLEAN",
+                "description": "If true, presses Enter immediately after typing text (useful for sending messages or submitting searches)"
+            },
+            "key": {
+                "type": "STRING",
+                "description": "Keyboard key to press (Enter, Escape, Tab, Backspace, ArrowDown)"
             },
             "direction": {
                 "type": "STRING",
@@ -1105,19 +1149,15 @@ TOOL = {
             },
             "amount": {
                 "type": "INTEGER",
-                "description": "Scroll amount in pixels (default: 500)"
+                "description": "Scroll distance in pixels (default: 500)"
             },
-            "key": {
-                "type": "STRING",
-                "description": "Key name for press action (e.g. Enter, Escape, F5)"
+            "index": {
+                "type": "INTEGER",
+                "description": "Tab index for switch_tab"
             },
-            "path": {
-                "type": "STRING",
-                "description": "Save path for screenshot"
-            },
-            "incognito": {
+            "enable": {
                 "type": "BOOLEAN",
-                "description": "Open in private/incognito mode"
+                "description": "True to enable fullscreen, False to exit fullscreen"
             },
             "clear_first": {
                 "type": "BOOLEAN",

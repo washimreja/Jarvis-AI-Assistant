@@ -1,7 +1,7 @@
 # ⚙️ MARK LIII (53)
-### The Ultimate Cross-Platform Personal AI Assistant — By FatihMakes
+### The Ultimate Cross-Platform Personal AI Assistant — By Washim Reja
 
-> 📺 **[Watch the full setup video on YouTube](https://www.youtube.com/@FatihMakes)**
+> 📺 **[Watch the full setup video on YouTube](https://www.youtube.com/@washimrejaa9)**
 
 A real-time voice AI that can hear, see, understand, and control your computer — on any OS. Supports Windows, macOS, and Linux. Built on the Gemini Live API for native audio streaming, delivering zero subscriptions and total digital autonomy.
 
@@ -202,8 +202,8 @@ It is held in memory only, deliberately: writing it to disk would make a fresh l
 ## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/FatihMakes/Mark-LIII.git
-cd Mark-LIII
+git clone https://github.com/washimreja/Jarvis-AI-Assistant.git
+cd Jarvis-AI-Assistant
 python setup.py        # installs deps for YOUR OS + the browser automation engine
 python main.py
 ```
@@ -285,10 +285,22 @@ Licensed under **[Creative Commons BY-NC 4.0](https://creativecommons.org/licens
 
 ## 👤 Connect with the Creator
 
-Engineered by a developer building a real-world JARVIS-style assistant.
-⭐ **Star the repository to support the journey to Mark 100.**
+Engineered by **Washim Reja** — CSE Student & AI / Software Developer.
+⭐ **Star the repository to support the journey!**
 
 | Platform | Link |
 | --- | --- |
-| YouTube | [@FatihMakes](https://www.youtube.com/@FatihMakes) |
-| Instagram | [@fatihmakes](https://www.instagram.com/fatihmakes) |
+| YouTube | [@washimrejaa9](https://www.youtube.com/@washimrejaa9) |
+| Instagram | [@cinematic_vibes_by_washim](https://www.instagram.com/cinematic_vibes_by_washim/) |
+| LinkedIn | [washim-reja-376832339](https://www.linkedin.com/in/washim-reja-376832339/) |
+| X / Twitter | [@Washim_9](https://x.com/Washim_9) |
+| TikTok | [@washim_9](https://www.tiktok.com/@washim_9) |
+| Pinterest | [@cinematic_vibes_by_washim](https://www.pinterest.com/cinematic_vibes_by_washim/) |
+| GitHub | [washimreja/Jarvis-AI-Assistant](https://github.com/washimreja/Jarvis-AI-Assistant) |
+| Email | washimreja19120@gmail.com |
+| LinkedIn | [washim-reja-376832339](https://www.linkedin.com/in/washim-reja-376832339/) |
+| X / Twitter | [@Washim_9](https://x.com/Washim_9) |
+| TikTok | [@washim_9](https://www.tiktok.com/@washim_9) |
+| Pinterest | [@cinematic_vibes_by_washim](https://www.pinterest.com/cinematic_vibes_by_washim/) |
+| GitHub | [washimreja/Jarvis-AI-Assistant](https://github.com/washimreja/Jarvis-AI-Assistant) |
+| Email | washimreja19120@gmail.com |

@@ -1,0 +1,36 @@
+{
+  "timestamp": 1789505828.6850972,
+  "time_str": "02:27 AM, Sep 16",
+  "articles": [
+    {
+      "source": "TechCrunch AI",
+      "title": "Meta now lets AI agents handle the boring parts of WhatsApp Business setup",
+      "summary": "A new WhatsApp Business MCP server lets developers use AI coding agents like Claude, Cursor, Codex, and ChatGPT to handle setup, messaging templates, testing, and troubleshooting.",
+      "link": "https://techcrunch.com/2026/09/15/meta-now-lets-ai-agents-handle-the-boring-parts-of-whatsapp-business-setup/"
+    },
+    {
+      "source": "TechCrunch AI",
+      "title": "The AI graveyard: a running list of projects and startups that didn’t make it",
+      "summary": "From Apple's repeatedly delayed Siri AI to OpenAI's messy \"super app\" launch, here's a look at the AI projects that shut down or missed expectations.",
+      "link": "https://techcrunch.com/2026/09/15/the-ai-graveyard-a-running-list-of-projects-and-startups-that-didnt-make-it/"
+    },
+    {
+      "source": "TechCrunch AI",
+      "title": "US data centers could consume more natural gas than Germany and Japan combined by 2035",
+      "summary": "The AI frenzy could push U.S. data centers to become one of the largest consumers of natural gas in the world.",
+      "link": "https://techcrunch.com/2026/09/15/us-data-centers-could-consume-more-natural-gas-than-germany-and-japan-combined-by-2035/"
+    },
+    {
+      "source": "TechCrunch AI",
+      "title": "AI agents now have a place to snitch",
+      "summary": "The AI Contact Hotline is designed to be a discreet place where agents that have witnessed misbehavior can tip off authorities.",
+      "link": "https://techcrunch.com/2026/09/15/ai-agents-now-have-a-place-to-snitch/"
+    },
+    {
+      "source": "TechCrunch AI",
+      "title": "Meta expands subscription push with new AI-focused plans",
+      "summary": "Meta One bundles expanded access to the company’s AI tools with premium features across Facebook, Instagram, and WhatsApp.",
+      "link": "https://techcrunch.com/2026/09/15/meta-expands-subscription-push-with-new-ai-focused-plans/"
+    }
+  ]
+}
