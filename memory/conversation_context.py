@@ -10,18 +10,53 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.user_data import (
+    get_conversations_path,
+    get_conversations_dir,
+    migrate_file,
+)
+
 logger = logging.getLogger("ConversationContext")
 
 _LOCK = threading.Lock()
-_BASE_DIR = Path(__file__).resolve().parent.parent
-_HISTORY_FILE = _BASE_DIR / "memory" / "conversation_history.json"
+
+
+def _get_legacy_history_path() -> Path:
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).parent
+        p1 = exe_dir / "memory" / "conversation_history.json"
+        if p1.exists():
+            return p1
+        p2 = exe_dir / "_internal" / "memory" / "conversation_history.json"
+        if p2.exists():
+            return p2
+        return p1
+    return Path(__file__).resolve().parent / "conversation_history.json"
+
+
+_HISTORY_FILE = get_conversations_path()
 _MAX_STORED_TURNS = 100
+
+_history_migration_done = False
+
+
+def _migrate_history_once() -> None:
+    global _history_migration_done
+    if _history_migration_done:
+        return
+    _history_migration_done = True
+    migrate_file(
+        old_path=_get_legacy_history_path(),
+        new_path=_HISTORY_FILE,
+        label="Conversations",
+    )
 
 
 class ConversationContextManager:
@@ -29,6 +64,7 @@ class ConversationContextManager:
 
     @classmethod
     def _load_history(cls) -> List[Dict[str, Any]]:
+        _migrate_history_once()
         if not _HISTORY_FILE.exists():
             return []
         try:
@@ -41,6 +77,7 @@ class ConversationContextManager:
 
     @classmethod
     def _save_history(cls, history: List[Dict[str, Any]]) -> None:
+        _migrate_history_once()
         try:
             _HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(_HISTORY_FILE, "w", encoding="utf-8") as f:

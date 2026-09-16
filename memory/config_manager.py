@@ -2,19 +2,57 @@ import json
 import sys
 from pathlib import Path
 
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
+# ── Persistent user-data paths ───────────────────────────────────────────────
+# CONFIG_FILE lives in %APPDATA%\JARVIS\settings\api_keys.json so that it
+# survives EXE updates, git pulls, and PyInstaller rebuilds.
+# The legacy project-relative config/api_keys.json is migrated automatically
+# on first use (read or write) if the new location does not yet exist.
 
-BASE_DIR    = get_base_dir()
-CONFIG_DIR  = BASE_DIR / "config"
-CONFIG_FILE = CONFIG_DIR / "api_keys.json"
+from core.user_data import (
+    get_settings_path,
+    get_settings_dir,
+    migrate_file,
+)
+
+
+def _get_legacy_config_path() -> Path:
+    """Return the old config/api_keys.json path (project-relative)."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent / "config" / "api_keys.json"
+    return Path(__file__).resolve().parent.parent / "config" / "api_keys.json"
+
+
+CONFIG_FILE = get_settings_path()
+# Keep a module-level alias for callers that used CONFIG_DIR directly (none in
+# this file, but external code may reference it).
+CONFIG_DIR  = get_settings_dir()
+
+_migration_done = False
+
+
+def _migrate_once() -> None:
+    """One-time, idempotent migration from legacy config path to AppData.
+
+    Called at the start of every public read/write function so the migration
+    happens on first actual use — not at import time.  Safe to call many times.
+    """
+    global _migration_done
+    if _migration_done:
+        return
+    _migration_done = True
+    migrate_file(
+        old_path=_get_legacy_config_path(),
+        new_path=CONFIG_FILE,
+        label="Config",
+    )
+
 
 def ensure_config_dir() -> None:
+    _migrate_once()
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 def config_exists() -> bool:
+    _migrate_once()
     return CONFIG_FILE.exists()
 
 def save_api_keys(gemini_api_key: str) -> None:
@@ -35,6 +73,7 @@ def save_api_keys(gemini_api_key: str) -> None:
     )
 
 def load_api_keys() -> dict:
+    _migrate_once()
     if not CONFIG_FILE.exists():
         return {}
     try:

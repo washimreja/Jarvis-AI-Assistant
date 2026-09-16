@@ -298,9 +298,3 @@ Engineered by **Washim Reja** — CSE Student & AI / Software Developer.
 | Pinterest | [@cinematic_vibes_by_washim](https://www.pinterest.com/cinematic_vibes_by_washim/) |
 | GitHub | [washimreja/Jarvis-AI-Assistant](https://github.com/washimreja/Jarvis-AI-Assistant) |
 | Email | washimreja19120@gmail.com |
-| LinkedIn | [washim-reja-376832339](https://www.linkedin.com/in/washim-reja-376832339/) |
-| X / Twitter | [@Washim_9](https://x.com/Washim_9) |
-| TikTok | [@washim_9](https://www.tiktok.com/@washim_9) |
-| Pinterest | [@cinematic_vibes_by_washim](https://www.pinterest.com/cinematic_vibes_by_washim/) |
-| GitHub | [washimreja/Jarvis-AI-Assistant](https://github.com/washimreja/Jarvis-AI-Assistant) |
-| Email | washimreja19120@gmail.com |

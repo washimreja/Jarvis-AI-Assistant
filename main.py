@@ -54,6 +54,7 @@ from memory.memory_manager import (
     save_session_summary, pop_last_session,
     search_memory, set_trim_notifier,
 )
+from core.user_profile import load_profile, format_profile_for_prompt
 
 # The file-backed tools (open_app, web_search, browser_control, …) are no longer
 # imported or declared here — they self-describe via a TOOL dict in their own
@@ -121,7 +122,10 @@ def _pcm_level(samples) -> float:
 
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+    from core.user_data import get_settings_path
+    appdata_cfg = get_settings_path()
+    cfg_file = appdata_cfg if appdata_cfg.exists() else API_CONFIG_PATH
+    with open(cfg_file, "r", encoding="utf-8") as f:
         return json.load(f)["gemini_api_key"]
 
 
@@ -673,7 +677,11 @@ class JarvisLive:
 
         # Load customization from config
         try:
-            _cfg = json.loads(open(API_CONFIG_PATH, encoding="utf-8").read())
+            from core.user_data import get_settings_path
+            cfg_p = get_settings_path()
+            if not cfg_p.exists():
+                cfg_p = API_CONFIG_PATH
+            _cfg = json.loads(open(cfg_p, encoding="utf-8").read())
             self._asst_name = (_cfg.get("assistant_name") or "JARVIS").strip()
             _user_name = (_cfg.get("user_name") or "").strip()
         except Exception:
@@ -682,6 +690,8 @@ class JarvisLive:
 
         memory     = load_memory()
         mem_str    = format_memory_for_prompt(memory)
+        profile    = load_profile()
+        prof_str   = format_profile_for_prompt(profile)
         sys_prompt = _load_system_prompt()
 
         now      = datetime.now()
@@ -709,6 +719,8 @@ class JarvisLive:
         )
 
         parts = [time_ctx, identity_ctx]
+        if prof_str:
+            parts.append(prof_str)
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)

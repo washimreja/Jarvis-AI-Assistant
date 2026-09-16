@@ -5,16 +5,42 @@ from threading import Lock
 from pathlib import Path
 import sys
 
+from core.user_data import (
+    get_memory_path,
+    get_memory_dir,
+    get_sessions_dir,
+    ensure_sessions_dir,
+    migrate_file,
+)
 
-def get_base_dir() -> Path:
+
+def _get_legacy_memory_path() -> Path:
+    """Return the old project-relative long_term.json path."""
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
+        return Path(sys.executable).parent / "memory" / "long_term.json"
+    return Path(__file__).resolve().parent / "long_term.json"
 
 
-BASE_DIR         = get_base_dir()
-MEMORY_PATH      = BASE_DIR / "memory" / "long_term.json"
-_lock            = Lock()
+MEMORY_PATH = get_memory_path()
+_lock       = Lock()
+
+_memory_migration_done = False
+
+
+def _migrate_memory_once() -> None:
+    """Idempotent migration of long_term.json to AppData.  Called on first
+    read or write.  The original file is never deleted."""
+    global _memory_migration_done
+    if _memory_migration_done:
+        return
+    _memory_migration_done = True
+    migrate_file(
+        old_path=_get_legacy_memory_path(),
+        new_path=MEMORY_PATH,
+        label="Memory",
+    )
+
+
 MAX_VALUE_LENGTH = 380
 
 # ── Why there are two very different numbers here ────────────────────────────
@@ -55,6 +81,7 @@ def _empty_memory() -> dict:
     }
 
 def load_memory() -> dict:
+    _migrate_memory_once()
     if not MEMORY_PATH.exists():
         return _empty_memory()
     with _lock:
@@ -116,6 +143,7 @@ def _trim_to_limit(memory: dict) -> dict:
     return memory
 
 def save_memory(memory: dict) -> None:
+    _migrate_memory_once()
     if not isinstance(memory, dict):
         return
     memory = _trim_to_limit(memory)
@@ -429,20 +457,42 @@ _SESSION_MAX = 3   # safety cap — in practice 0-1 entries after pop
 
 
 def save_session_summary(summary: str, language: str = "") -> None:
-    """Append a 1-2 sentence session summary to long_term.json['sessions']."""
+    r"""Append a 1-2 sentence session summary to long_term.json['sessions']
+    and write a durable historical copy to %APPDATA%\JARVIS\sessions\."""
     summary = (summary or "").strip()
     if not summary:
         return
-    memory   = load_memory()
-    sessions = memory.get("sessions", [])
-    if not isinstance(sessions, list):
-        sessions = []
+
     entry: dict = {
         "date":    datetime.now().strftime("%Y-%m-%d"),
         "summary": summary[:280],
     }
     if language:
         entry["language"] = language
+
+    # ── Durable historical archive in %APPDATA%\JARVIS\sessions\ ─────────
+    try:
+        ensure_sessions_dir()
+        archive_ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        archive_file = get_sessions_dir() / f"{archive_ts}.json"
+        archive_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "date": entry["date"],
+            "summary": summary,
+        }
+        if language:
+            archive_entry["language"] = language
+        archive_file.write_text(
+            json.dumps(archive_entry, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as e:
+        print(f"[Memory] ⚠️ Failed to archive session: {e}")
+
+    memory   = load_memory()
+    sessions = memory.get("sessions", [])
+    if not isinstance(sessions, list):
+        sessions = []
     sessions.append(entry)
     memory["sessions"] = sessions[-_SESSION_MAX:]
     with _lock:
@@ -459,6 +509,7 @@ def pop_last_session() -> dict | None:
     Return AND remove the most recent session entry.
     Calling this consumes the entry so it is never repeated in future briefings.
     """
+    _migrate_memory_once()
     with _lock:
         if not MEMORY_PATH.exists():
             return None
